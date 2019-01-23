@@ -1,13 +1,15 @@
 package nodeViewHolder
 
-import scorex.core.ModifierId
 import scorex.core.transaction.MemoryPool
+import scorex.util.ModifierId
 import transaction.BDTransaction
 
 import scala.util.Try
 
 case class BDMempool(poolTxs: Seq[BDTransaction] = Seq())
   extends MemoryPool[BDTransaction, BDMempool] {
+
+  override def modifierById(id: ModifierId): Option[BDTransaction] = poolTxs.find(_.id == id)
 
   override def put(tx: BDTransaction): Try[BDMempool] = put(Seq(tx))
 
@@ -29,9 +31,7 @@ case class BDMempool(poolTxs: Seq[BDTransaction] = Seq())
     new BDMempool(poolTxs.filter(condition))
   }
 
-  override def getById(id: ModifierId): Option[BDTransaction] = poolTxs.find(_.id sameElements id)
-
-  override def contains(id: ModifierId): Boolean = poolTxs.exists(_.id sameElements id)
+  override def contains(id: ModifierId): Boolean = poolTxs.exists(_.id == id)
 
   override def getAll(ids: Seq[ModifierId]): Seq[BDTransaction] = poolTxs
 

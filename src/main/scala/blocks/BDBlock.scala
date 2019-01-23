@@ -2,13 +2,16 @@ package blocks
 
 import io.circe.Json
 import org.msgpack.core.MessagePack
+import scorex.core.ModifierTypeId
 import scorex.core.block.Block
 import scorex.core.block.Block.Version
 import scorex.core.serialization.Serializer
 import scorex.core.utils.concatBytes
-import scorex.core.{ModifierId, ModifierTypeId}
+import scorex.core.bytesToId
 import scorex.crypto.hash.{Blake2b256, Digest32}
-import transaction.{BDTransaction, BDTransactionSerializer, OutputId, Sha256PreimageProposition}
+import scorex.util.ModifierId
+import scorex.util.encode.Base16
+import transaction.{BDTransaction, BDTransactionSerializer}
 
 import scala.util.Try
 
@@ -17,16 +20,14 @@ case class BDBlock(transactions: Seq[BDTransaction],
                    currentTarget: Long,
                    nonce: Long,
                    version: Version,
-                   timestamp: Long) extends Block[Sha256PreimageProposition, BDTransaction] {
+                   timestamp: Long) extends Block[BDTransaction] {
   override type M = BDBlock
 
   override val modifierTypeId: ModifierTypeId = BDBlock.BDBlockModifierTypeId
 
   val hash: Digest32 = Blake2b256(bytes)
 
-  override val id: ModifierId = ModifierId @@ hash
-
-  override def json: Json = ???
+  override val id: ModifierId = bytesToId(hash)
 
   override def serializer: Serializer[BDBlock] = BDBlockSerializer
 }
@@ -45,7 +46,7 @@ object BDBlockSerializer extends Serializer[BDBlock] {
   override def toBytes(obj: BDBlock): Array[Version] = {
     val packer = MessagePack.newDefaultBufferPacker()
     packer.packBinaryHeader(obj.parentId.length)
-    packer.writePayload(obj.parentId)
+    packer.writePayload(Base16.decode(obj.parentId).get)
     packer.packArrayHeader(obj.transactions.size)
     for {
       input <- obj.transactions
@@ -64,7 +65,7 @@ object BDBlockSerializer extends Serializer[BDBlock] {
   override def parseBytes(bytes: Array[Version]): Try[BDBlock] = Try {
     val unpacker = MessagePack.newDefaultUnpacker(bytes)
     val idSize = unpacker.unpackBinaryHeader()
-    val parentId = ModifierId @@ unpacker.readPayload(idSize)
+    val parentId = bytesToId(unpacker.readPayload(idSize))
     val txsNum = unpacker.unpackArrayHeader()
     val txs = for {
       i <- Range(0, txsNum)

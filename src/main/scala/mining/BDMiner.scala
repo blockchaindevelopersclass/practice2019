@@ -4,23 +4,19 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import blocks.BDBlock
 import mining.BDMiner.MineBlock
 import nodeViewHolder.BDBlockchain
-import scorex.core.LocalInterface.LocallyGeneratedModifier
-import scorex.core.NodeViewHolder
-import scorex.core.NodeViewHolder.{ChangedMempool, SemanticallySuccessfulModifier, Subscribe}
-import scorex.core.utils.{NetworkTimeProvider, ScorexLogging}
-import scorex.crypto.encode.Base58
+import scorex.core.NodeViewHolder.ReceivableMessages.LocallyGeneratedModifier
+import scorex.core.network.NodeViewSynchronizer.ReceivableMessages.{ChangedMempool, SemanticallySuccessfulModifier}
+import scorex.core.utils.NetworkTimeProvider
+import scorex.util.ScorexLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.math.BigInt
-import scala.util.Random
 
 class BDMiner(viewHolderRef: ActorRef, timeProvider: NetworkTimeProvider) extends Actor with ScorexLogging {
 
   override def preStart(): Unit = {
-    val events = Seq(NodeViewHolder.EventType.SuccessfulSemanticallyValidModifier,
-      NodeViewHolder.EventType.MempoolChanged)
-    viewHolderRef ! Subscribe(events)
+    context.system.eventStream.subscribe(self, classOf[SemanticallySuccessfulModifier[_]])
   }
 
   var currentCandidate: BDBlock = constructNewBlock(BDBlockchain.GenesisBlock)

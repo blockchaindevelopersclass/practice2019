@@ -1,20 +1,21 @@
 package transaction
 
 import com.google.common.primitives.Bytes
-import io.circe.Json
 import org.msgpack.core.MessagePack
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.Transaction
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.core.transaction.proof.Signature25519
 import scorex.core.utils.concatBytes
-import scorex.crypto.hash.Digest32
+import scorex.crypto.signatures.{PublicKey, Signature}
 import supertagged.untag
 
 import scala.util.Try
 
 case class BDTransaction(inputs: IndexedSeq[OutputId],
-                         outputs: IndexedSeq[(Sha256PreimageProposition, Value)],
-                         signatures: IndexedSeq[Sha256PreimageProof]
-                        ) extends Transaction[Sha256PreimageProposition] {
+                         outputs: IndexedSeq[Output],
+                         signatures: IndexedSeq[Signature25519]
+                        ) extends Transaction {
   override type M = BDTransaction
 
   private def seqToBytes[A](sequence: IndexedSeq[A], mapping: A => Array[Byte]): Array[Byte] =
@@ -24,17 +25,16 @@ case class BDTransaction(inputs: IndexedSeq[OutputId],
     seqToBytes[OutputId](
       inputs,
       i => untag(i)),
-    seqToBytes[(Sha256PreimageProposition, Value)](
+    seqToBytes[Output](
       outputs,
-      o => o._1.serializer.toBytes(o._1)),
-    seqToBytes[Sha256PreimageProof](
+      o => o.serializer.toBytes(o)),
+    seqToBytes[Signature25519](
       signatures,
       s => s.serializer.toBytes(s))
   )
 
   override def serializer: Serializer[BDTransaction] = BDTransactionSerializer
 
-  override def json: Json = ???
 }
 
 object BDTransactionSerializer extends Serializer[BDTransaction] {
@@ -51,16 +51,16 @@ object BDTransactionSerializer extends Serializer[BDTransaction] {
     for {
       output <- obj.outputs
     } yield {
-      packer.packBinaryHeader(output._1.hash.length)
-      packer.writePayload(output._1.hash)
-      packer.packLong(output._2)
+      packer.packBinaryHeader(output.proposition.bytes.length)
+      packer.writePayload(output.proposition.bytes)
+      packer.packLong(output.value)
     }
     packer.packArrayHeader(obj.signatures.size)
     for {
       signature <- obj.signatures
     } yield {
-      packer.packBinaryHeader(signature.preimage.length)
-      packer.writePayload(signature.preimage)
+      packer.packBinaryHeader(signature.signature.length)
+      packer.writePayload(signature.signature)
     }
     packer.toByteArray
   }
@@ -79,8 +79,8 @@ object BDTransactionSerializer extends Serializer[BDTransaction] {
       i <- Range(0, numOutputs)
     } yield {
       val binaryLen = unpacker.unpackBinaryHeader()
-      (
-        Sha256PreimageProposition(Digest32 @@ unpacker.readPayload(binaryLen)),
+      Output(
+        PublicKey25519Proposition(PublicKey @@ unpacker.readPayload(binaryLen)),
         Value @@ unpacker.unpackLong()
       )
     }
@@ -89,7 +89,7 @@ object BDTransactionSerializer extends Serializer[BDTransaction] {
       i <- Range(0, numTransactions)
     } yield {
       val binaryLen = unpacker.unpackBinaryHeader()
-      Sha256PreimageProof(Digest32Preimage @@ unpacker.readPayload(binaryLen))
+      Signature25519(Signature @@ unpacker.readPayload(binaryLen))
     }
     BDTransaction(inputs, outputs, transactions)
   }

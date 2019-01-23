@@ -14,9 +14,10 @@ class BDMempoolTest extends PropSpec
   with GeneratorDrivenPropertyChecks
   with Matchers
   with CoreGenerators
-  with MempoolTransactionsTest[Sha256PreimageProposition, BDTransaction, BDMempool]
+  with MempoolTransactionsTest[BDTransaction, BDMempool]
   with Generators {
 
+  override val memPoolGenerator: Gen[BDMempool] = new BDMempool
   override val memPool: BDMempool = new BDMempool
 
   override val transactionGenerator: Gen[BDTransaction] = BDTransactionGenerator

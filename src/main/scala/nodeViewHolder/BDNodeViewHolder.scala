@@ -1,17 +1,15 @@
 package nodeViewHolder
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import blocks.{BDBlock, BDBlockSerializer}
-import scorex.core.serialization.Serializer
+import blocks.BDBlock
+import scorex.core.NodeViewHolder
 import scorex.core.settings.ScorexSettings
-import scorex.core.transaction.Transaction
 import scorex.core.utils.NetworkTimeProvider
-import scorex.core.{ModifierTypeId, NodeViewHolder, NodeViewModifier}
-import transaction.{BDTransactionSerializer, BDTransaction, Sha256PreimageProposition}
+import transaction.BDTransaction
 
-class BDNodeViewHolder(settings: ScorexSettings,
+class BDNodeViewHolder(val scorexSettings: ScorexSettings,
                        timeProvider: NetworkTimeProvider)
-  extends NodeViewHolder[Sha256PreimageProposition, BDTransaction, BDBlock] {
+  extends NodeViewHolder[BDTransaction, BDBlock] {
 
   override type SI = BDSyncInfo
   override type HIS = BDBlockchain
@@ -24,11 +22,6 @@ class BDNodeViewHolder(settings: ScorexSettings,
   override protected def genesisState: (BDBlockchain, BDState, BDWallet, BDMempool) =
     (BDBlockchain.empty, BDState.empty, BDWallet.empty, BDMempool.empty)
 
-  override val modifierSerializers: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
-    Map(BDBlock.BDBlockModifierTypeId -> BDBlockSerializer,
-      Transaction.ModifierTypeId -> BDTransactionSerializer)
-
-  override val networkChunkSize: Int = settings.network.networkChunkSize
 }
 
 

@@ -3,33 +3,35 @@ package utils
 import blocks.BDBlock
 import nodeViewHolder.BDSyncInfo
 import org.scalacheck.{Arbitrary, Gen}
-import scorex.core.ModifierId
 import scorex.core.block.Block.Version
-import scorex.crypto.hash.Digest32
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.core.transaction.proof.Signature25519
+import scorex.crypto.signatures.{PublicKey, Signature}
 import scorex.testkit.generators.CoreGenerators
+import scorex.util.ModifierId
 import transaction._
 
 trait Generators extends CoreGenerators {
 
-  val preimageProofGenerator: Gen[Sha256PreimageProof] = nonEmptyBytesGen
-    .map(b => Sha256PreimageProof(Digest32Preimage @@ b))
+  val preimageProofGenerator: Gen[Signature25519] = nonEmptyBytesGen
+    .map(b => Signature25519(Signature @@ b))
 
-  val preimagePropositionGenerator: Gen[Sha256PreimageProposition] = nonEmptyBytesGen
-    .map(b => Sha256PreimageProposition(Digest32 @@ b))
+  val preimagePropositionGenerator: Gen[PublicKey25519Proposition] = nonEmptyBytesGen
+    .map(b => PublicKey25519Proposition(PublicKey @@ b))
 
-  val outputGen: Gen[(Sha256PreimageProposition, Value)] = for {
+  val outputGen: Gen[Output] = for {
     p <- preimagePropositionGenerator
     value <- positiveLongGen
-  } yield p -> Value @@ value
+  } yield Output(p, Value @@ value)
 
   val BDTransactionGenerator: Gen[BDTransaction] = for {
-    inputs <- Gen.nonEmptyListOf(genBytesList(32)).map(b => OutputId @@ b)
+    inputs <- Gen.nonEmptyListOf(genBytes(32)).map(b => OutputId @@ b)
     outputs <- Gen.nonEmptyListOf(outputGen)
     signatures <- Gen.listOfN(inputs.length, preimageProofGenerator)
   } yield BDTransaction(inputs.toIndexedSeq, outputs.toIndexedSeq, signatures.toIndexedSeq)
 
   val BDBlockGenerator: Gen[BDBlock] = for {
-    parentId <- genBytesList(32).map(b => ModifierId @@ b)
+    parentId <- modifierIdGen
     transactions <- smallInt.flatMap(n => Gen.listOfN(n, BDTransactionGenerator))
     currentTarget <- positiveLongGen
     nonce <- positiveLongGen
@@ -43,7 +45,7 @@ trait Generators extends CoreGenerators {
     timestamp: Long)
 
   val BDSyncInfoGen: Gen[BDSyncInfo] = for {
-    ids <- Gen.nonEmptyListOf(genBytesList(32)).map(id => ModifierId @@ id)
+    ids <- Gen.nonEmptyListOf(modifierIdGen)
   } yield BDSyncInfo(ids)
 
 }
