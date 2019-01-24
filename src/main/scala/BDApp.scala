@@ -16,12 +16,12 @@ import scala.language.postfixOps
 
 class BDApp(args: Seq[String]) extends {
   override implicit val settings: ScorexSettings = ScorexSettings.read(args.headOption)
+  override protected val features: Seq[PeerFeature] = Seq()
 } with Application {
   override type TX = BDTransaction
   override type PMOD = BDBlock
   override type NVHT = BDNodeViewHolder
 
-  override protected val features: Seq[PeerFeature] = Seq()
   override protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BDSyncInfoMessageSpec)
 
   override val nodeViewHolderRef: ActorRef = BDNodeViewHolderRef(settings, timeProvider)
