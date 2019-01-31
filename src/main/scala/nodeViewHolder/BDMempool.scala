@@ -14,12 +14,13 @@ case class BDMempool(poolTxs: Seq[BDTransaction] = Seq())
   override def put(tx: BDTransaction): Try[BDMempool] = put(Seq(tx))
 
   override def put(txs: Iterable[BDTransaction]): Try[BDMempool] = Try {
-    txs.foreach(tx => require(tx.inputs.length == tx.signatures.length))
+    // todo some checks here
     putWithoutCheck(txs)
   }
 
   override def putWithoutCheck(txs: Iterable[BDTransaction]): BDMempool = {
-    val newTransactions = txs.filter(tx => !poolTxs.contains(tx)).take(BDMempool.Limit - poolTxs.size)
+    val unique = txs.map(tx => tx.id -> tx).toMap.values
+    val newTransactions = unique.filter(tx => !poolTxs.contains(tx)).take(BDMempool.Limit - poolTxs.size)
     new BDMempool(poolTxs ++ newTransactions)
   }
 
@@ -33,17 +34,17 @@ case class BDMempool(poolTxs: Seq[BDTransaction] = Seq())
 
   override def contains(id: ModifierId): Boolean = poolTxs.exists(_.id == id)
 
-  override def getAll(ids: Seq[ModifierId]): Seq[BDTransaction] = poolTxs
+  override def getAll(ids: Seq[ModifierId]): Seq[BDTransaction] = poolTxs.filter(tx => ids.contains(tx.id))
 
   override def size: Int = poolTxs.size
 
-  override def take(limit: Int): Iterable[BDTransaction] = poolTxs.take(limit)
+  override def take(limit: Int): Seq[BDTransaction] = poolTxs.take(limit)
 
   override type NVCT = BDMempool
 }
 
 object BDMempool {
-  val Limit = 50
+  val Limit = 500
 
   val empty: BDMempool = BDMempool(Seq.empty)
 }

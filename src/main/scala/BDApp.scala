@@ -1,4 +1,5 @@
 import akka.actor.{ActorRef, Props}
+import api.BDApiRoute
 import blocks.BDBlock
 import mining.BDMiner.MineBlock
 import mining.BDMinerRef
@@ -12,10 +13,11 @@ import scorex.core.settings.ScorexSettings
 import transaction.BDTransaction
 
 import scala.concurrent.duration._
+import scala.io.Source
 import scala.language.postfixOps
 
-class BDApp(args: Seq[String]) extends {
-  override implicit val settings: ScorexSettings = ScorexSettings.read(args.headOption)
+class BDApp(configPath: String) extends {
+  override implicit val settings: ScorexSettings = ScorexSettings.read(Some(configPath))
   override protected val features: Seq[PeerFeature] = Seq()
 } with Application {
   override type TX = BDTransaction
@@ -30,10 +32,11 @@ class BDApp(args: Seq[String]) extends {
     actorSystem.actorOf(Props(new BDNodeViewSynchronizer(networkControllerRef, nodeViewHolderRef,
       BDSyncInfoMessageSpec, settings.network, timeProvider)))
 
-  override val swaggerConfig: String = ""
+  override val swaggerConfig: String = Source.fromResource("api.yaml").getLines.mkString("\n")
+
   override val apiRoutes: Seq[ApiRoute] = Seq(
     UtilsApiRoute(settings.restApi),
-//    NodeViewApiRoute[TX](settings.restApi, nodeViewHolderRef),
+    BDApiRoute(settings.restApi, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkControllerRef, timeProvider, settings.restApi)
   )
 
@@ -48,5 +51,7 @@ class BDApp(args: Seq[String]) extends {
 
 object BDApp {
 
-  def main(args: Array[String]): Unit = new BDApp(args).run()
+  def main(args: Array[String]): Unit = {
+    new BDApp(args.headOption.getOrElse("src/main/resources/node1.conf")).run()
+  }
 }

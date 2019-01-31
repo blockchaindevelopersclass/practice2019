@@ -6,29 +6,29 @@ import scorex.core.consensus.History.ModifierIds
 import scorex.core.consensus.SyncInfo
 import scorex.core.{bytesToId, idToBytes}
 import scorex.core.network.message.SyncInfoMessageSpec
-import scorex.core.serialization.Serializer
+import scorex.core.serialization.ScorexSerializer
+import scorex.util.serialization.{Reader, Writer}
 
 import scala.util.Try
 
 case class BDSyncInfo(ids: Seq[ModifierId]) extends SyncInfo {
-  override type M = BDSyncInfo
 
   override val startingPoints: ModifierIds = Seq((BDBlock.BDBlockModifierTypeId, ids.head))
 
-  override def serializer: Serializer[BDSyncInfo] = BDSyncInfoSerializer
 }
 
-object BDSyncInfoSerializer extends Serializer[BDSyncInfo] {
-  override def toBytes(obj: BDSyncInfo): Array[Byte] = scorex.core.utils.concatFixLengthBytes(obj.ids.map(idToBytes))
+object BDSyncInfoSerializer extends ScorexSerializer[BDSyncInfo] {
 
-  override def parseBytes(bytesIn: Array[Byte]): Try[BDSyncInfo] = Try {
-    def loop(bytes: Array[Byte], acc: Seq[ModifierId]): BDSyncInfo = if (bytes.nonEmpty) {
-      val nextId: ModifierId = bytesToId(bytes.take(32))
-      loop(bytes.drop(32), acc ++ Seq(nextId))
-    } else {
-      BDSyncInfo(acc)
+  override def serialize(obj: BDSyncInfo, w: Writer): Unit = {
+    w.putInt(obj.ids.size)
+    obj.ids.foreach(id => w.putBytes(idToBytes(id)))
+  }
+
+  override def parse(r: Reader): BDSyncInfo = {
+    val ids = (0 until r.getInt()) map { _ =>
+      bytesToId(r.getBytes(32))
     }
-    loop(bytesIn, Seq.empty)
+    BDSyncInfo(ids)
   }
 }
 
@@ -37,4 +37,4 @@ object BDSyncInfo {
   val idsSize = 100
 }
 
-object BDSyncInfoMessageSpec extends SyncInfoMessageSpec[BDSyncInfo](BDSyncInfoSerializer.parseBytes)
+object BDSyncInfoMessageSpec extends SyncInfoMessageSpec[BDSyncInfo](BDSyncInfoSerializer)

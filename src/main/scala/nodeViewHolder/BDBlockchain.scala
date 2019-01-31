@@ -35,8 +35,8 @@ case class BDBlockchain(blocks: Map[Int, BDBlock],
   override def append(block: BDBlock): Try[(BDBlockchain, ProgressInfo[BDBlock])] = Try {
     val blockHeight = height() + 1
     val progressInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
-    log.info(s"Appended block ${block.encodedId} with height ${blockHeight}")
-    (BDBlockchain(blocks + (blockHeight -> block), reverseMap + (block.encodedId -> blockHeight), isValid), progressInfo)
+    log.info(s"Appended block ${block.id} with height $blockHeight")
+    (BDBlockchain(blocks + (blockHeight -> block), reverseMap + (block.id -> blockHeight), isValid), progressInfo)
   }
 
   override def reportModifierIsValid(modifier: BDBlock): BDBlockchain = {

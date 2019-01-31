@@ -2,13 +2,32 @@ package nodeViewHolder
 
 import blocks.BDBlock
 import scorex.core.VersionTag
-import scorex.core.transaction.state.MinimalState
+import scorex.core.transaction.state.{MinimalState, PrivateKey25519Companion}
+import scorex.util.ScorexLogging
+import transaction.{BDOutput, Value}
 
 import scala.util.{Failure, Try}
 
-case class BDState(override val version: VersionTag) extends MinimalState[BDBlock, BDState] {
+case class BDState(override val version: VersionTag, utxo: Seq[BDOutput]) extends MinimalState[BDBlock, BDState]
+  with ScorexLogging {
   override def applyModifier(mod: BDBlock): Try[BDState] = Try {
-    BDState(VersionTag @@ mod.id)
+    log.info(s"Apply block ${mod.id} with ${mod.transactions.size} transactions to state of version $version")
+
+    val inputs = mod.transactions.flatMap(_.inputs)
+    mod.transactions.foreach { tx =>
+      require(tx.inputs.size == tx.signatures.size, "not enough signatures")
+      require(tx.outputs.forall(_.value >= 0), "negative amount to transfer")
+      val from: Seq[BDOutput] = tx.inputs.map(i => utxo.find(_.id sameElements i).get)
+      require(from.map(_.value.toLong).sum == tx.outputs.map(_.value.toLong).sum, "Sum of inputs != sum of outputs")
+
+      require(from.zip(tx.signatures).forall { case (input, proof) =>
+        proof.isValid(input.proposition, tx.messageToSign)
+      }, "proofs are incorrect")
+    }
+
+    val filtered = utxo.filter(o => !inputs.exists(_ sameElements o.id))
+
+    BDState(VersionTag @@ mod.id, filtered ++ mod.transactions.flatMap(_.outputs))
   }
 
   override def rollbackTo(version: VersionTag): Try[BDState] = Failure(new Error("Not supported"))
@@ -18,8 +37,11 @@ case class BDState(override val version: VersionTag) extends MinimalState[BDBloc
   override type NVCT = this.type
 }
 
-
 object BDState {
 
-  val empty: BDState = BDState(VersionTag @@ BDBlockchain.GenesisBlock.id)
+  private val genesisState: Seq[BDOutput] = Seq(
+    BDOutput(PrivateKey25519Companion.generateKeys("secret founders seed".getBytes())._2, Value @@ 1000000L)
+  )
+
+  val empty: BDState = BDState(VersionTag @@ BDBlockchain.GenesisBlock.id, genesisState)
 }

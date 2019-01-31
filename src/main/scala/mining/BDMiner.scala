@@ -3,9 +3,9 @@ package mining
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import blocks.BDBlock
 import mining.BDMiner.MineBlock
-import nodeViewHolder.BDBlockchain
+import nodeViewHolder.{BDBlockchain, BDMempool}
 import scorex.core.NodeViewHolder.ReceivableMessages.LocallyGeneratedModifier
-import scorex.core.network.NodeViewSynchronizer.ReceivableMessages.{ChangedMempool, SemanticallySuccessfulModifier}
+import scorex.core.network.NodeViewSynchronizer.ReceivableMessages.{ChangedHistory, ChangedMempool, SemanticallySuccessfulModifier}
 import scorex.core.utils.NetworkTimeProvider
 import scorex.util.ScorexLogging
 
@@ -16,14 +16,19 @@ import scala.math.BigInt
 class BDMiner(viewHolderRef: ActorRef, timeProvider: NetworkTimeProvider) extends Actor with ScorexLogging {
 
   override def preStart(): Unit = {
-    context.system.eventStream.subscribe(self, classOf[SemanticallySuccessfulModifier[_]])
+    context.system.eventStream.subscribe(self, classOf[ChangedMempool[_]])
+    context.system.eventStream.subscribe(self, classOf[ChangedHistory[_]])
   }
 
+  var currentMempool: BDMempool = new BDMempool
   var currentCandidate: BDBlock = constructNewBlock(BDBlockchain.GenesisBlock)
 
   override def receive: Receive = {
-    case SemanticallySuccessfulModifier(mod: BDBlock@unchecked) if mod.isInstanceOf[BDBlock] =>
-      currentCandidate = constructNewBlock(mod)
+    case ChangedHistory(h: BDBlockchain@unchecked) =>
+      currentCandidate = constructNewBlock(h.bestBlock)
+
+    case ChangedMempool(pool: BDMempool) =>
+      currentMempool = pool
 
     case MineBlock(newNonce) =>
       val newBlock = currentCandidate.copy(nonce = newNonce)
@@ -31,18 +36,15 @@ class BDMiner(viewHolderRef: ActorRef, timeProvider: NetworkTimeProvider) extend
         log.info(s"New block ${newBlock.encodedId} found")
         viewHolderRef ! LocallyGeneratedModifier(newBlock)
       }
-      context.system.scheduler.scheduleOnce(1.minute) {
+      context.system.scheduler.scheduleOnce(10.second) {
         self ! MineBlock(newNonce + 1)
       }
 
-    case ChangedMempool(pool) =>
-      //TODO get and use it in candidate creation
-
-    case m => log.warn(s"Unexpeted message $m")
+    case m => log.warn(s"Unexpected message $m")
   }
 
   private def constructNewBlock(parent: BDBlock): BDBlock = {
-    val transactions = Seq.empty
+    val transactions = currentMempool.take(1)
     val target = parent.currentTarget
     BDBlock(transactions,
       parent.id,
