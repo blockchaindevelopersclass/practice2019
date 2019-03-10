@@ -28,7 +28,20 @@ case class BDApiRoute(override val settings: RESTApiSettings, nodeViewHolderRef:
   type VL = BDWallet
 
   override val route: Route = (pathPrefix("bd") & withCors) {
-    containsModifier
+    containsModifier ~ info
+  }
+
+  def info: Route = (path("info") & get) {
+    def f(v: CurrentView[HIS, MS, VL, MP]): BDBlockchain = v.history
+
+    val chain = (nodeViewHolderRef ? GetDataFromCurrentView[HIS, MS, VL, MP, BDBlockchain](f)).mapTo[BDBlockchain]
+
+    onComplete(chain) { r =>
+      ApiResponse(
+        "bestBlock" -> r.get.bestBlock.toString.asJson,
+        "height" -> r.get.height().asJson
+      )
+    }
   }
 
   def containsModifier: Route = (get & path("contains" / Segment)) { encodedId =>
