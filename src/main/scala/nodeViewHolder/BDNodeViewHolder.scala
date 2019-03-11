@@ -19,8 +19,11 @@ class BDNodeViewHolder(val scorexSettings: ScorexSettings,
 
   override def restoreState(): Option[(BDBlockchain, BDState, BDWallet, BDMempool)] = None
 
-  override protected def genesisState: (BDBlockchain, BDState, BDWallet, BDMempool) =
-    (BDBlockchain.empty, BDState.empty, BDWallet.empty, BDMempool.empty)
+  override protected def genesisState: (BDBlockchain, BDState, BDWallet, BDMempool) = {
+    // todo seed should come from another source
+    val seed = scorexSettings.network.nodeName
+    (BDBlockchain.empty, BDState.empty, BDWallet(seed), BDMempool.empty)
+  }
 
 }
 

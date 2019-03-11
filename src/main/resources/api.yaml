@@ -15,6 +15,22 @@ info:
 components:
   schemas:
     # Objects
+    PaymentRequest:
+      description: Request for generation of payment transaction to a given address
+      type: object
+      required:
+        - address
+        - value
+      properties:
+        recipient:
+          description: Payment address
+          type: string
+          example: "01456a08bda264b3e6d4211f2bbb0478c4049b796afb759daace23c4247f72ea71b377262d"
+        amount:
+          description: Payment amount
+          type: integer
+          format: int64
+          example: 1
     ModifierId:
       description: Base16-encoded 32 byte modifier id
       type: string
@@ -78,10 +94,11 @@ components:
           nullable: true
           description: Detailed error description
 
+
 paths:
   /bd/contains/{modifierId}:
     get:
-      summary: Get history open surface
+      summary: Get modifier by id
       operationId: getPersistentModifierById
       tags:
         - bd
@@ -108,6 +125,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+
+  /bd/info:
+    get:
+      summary: Get node info
+      operationId: getNodeInfo
+      tags:
+        - bd
+      responses:
+        200:
+          description: General information about node
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - bestBlock
+                  - height
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /bd/transfer:
+    post:
+      summary: Transfer coins
+      operationId: transfer
+      tags:
+        - bd
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        200:
+          description: Attempt to connect to the peer
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
 
   /peers/all:
     get:

@@ -2,7 +2,8 @@ package nodeViewHolder
 
 import blocks.BDBlock
 import scorex.core.VersionTag
-import scorex.core.transaction.state.{MinimalState, PrivateKey25519Companion}
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.core.transaction.state.MinimalState
 import scorex.util.ScorexLogging
 import transaction.{BDOutput, Value}
 
@@ -39,9 +40,11 @@ case class BDState(override val version: VersionTag, utxo: Seq[BDOutput]) extend
 
 object BDState {
 
-  private val genesisState: Seq[BDOutput] = Seq(
-    BDOutput(PrivateKey25519Companion.generateKeys("secret founders seed".getBytes())._2, Value @@ 1000000L)
-  )
+  val genesisState: Seq[BDOutput] = {
+    Seq(
+      BDOutput(PublicKey25519Proposition.validPubKey("01456a08bda264b3e6d4211f2bbb0478c4049b796afb759daace23c4247f72ea71b377262d").get, Value @@ 1000000L)
+    )
+  }
 
   val empty: BDState = BDState(VersionTag @@ BDBlockchain.GenesisBlock.id, genesisState)
 }

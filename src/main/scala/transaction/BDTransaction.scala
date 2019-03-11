@@ -6,8 +6,6 @@ import scorex.core.transaction.proof.{Signature25519, Signature25519Serializer}
 import scorex.util.ByteArrayBuilder
 import scorex.util.serialization.{Reader, VLQByteBufferWriter, Writer}
 
-import scala.util.Try
-
 case class BDTransaction(inputs: IndexedSeq[OutputId],
                          outputs: IndexedSeq[BDOutput],
                          signatures: IndexedSeq[Signature25519]

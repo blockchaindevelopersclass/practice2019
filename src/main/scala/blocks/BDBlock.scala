@@ -22,6 +22,7 @@ case class BDBlock(transactions: Seq[BDTransaction],
 
   override val id: ModifierId = bytesToId(hash)
 
+  override def toString: String = s"BDBlock($nonce,$id,${transactions.toList})"
 }
 
 object BDBlock {

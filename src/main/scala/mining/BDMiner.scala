@@ -25,7 +25,10 @@ class BDMiner(viewHolderRef: ActorRef, timeProvider: NetworkTimeProvider) extend
 
   override def receive: Receive = {
     case ChangedHistory(h: BDBlockchain@unchecked) =>
-      currentCandidate = constructNewBlock(h.bestBlock)
+      context.system.scheduler.scheduleOnce(30.second) {
+        currentCandidate = constructNewBlock(h.bestBlock)
+        self ! MineBlock(currentCandidate.nonce + 1)
+      }
 
     case ChangedMempool(pool: BDMempool) =>
       currentMempool = pool
@@ -35,8 +38,7 @@ class BDMiner(viewHolderRef: ActorRef, timeProvider: NetworkTimeProvider) extend
       if (BDMiner.correctWorkDone(newBlock)) {
         log.info(s"New block ${newBlock.encodedId} found")
         viewHolderRef ! LocallyGeneratedModifier(newBlock)
-      }
-      context.system.scheduler.scheduleOnce(10.second) {
+      } else {
         self ! MineBlock(newNonce + 1)
       }
 
