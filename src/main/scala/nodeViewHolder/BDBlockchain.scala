@@ -7,6 +7,7 @@ import scorex.core.consensus.BlockChain.Score
 import scorex.core.consensus.History._
 import scorex.core.consensus.{BlockChain, ModifierSemanticValidity}
 import scorex.core.utils.ScorexEncoding
+import scorex.core.validation.RecoverableModifierError
 import scorex.util.ModifierId
 import transaction.BDTransaction
 
@@ -50,7 +51,7 @@ case class BDBlockchain(blocks: Map[Int, BDBlock],
   override def applicableTry(block: BDBlock): Try[Unit] = Try {
     if (!BDMiner.correctWorkDone(block)) throw new Error(s"Incorrect target for ${block.encodedId}")
     //TODO forks are not supported in this implementation
-    if (bestBlock.id != block.parentId) throw new Error(s"Incorrect parentId for ${block.encodedId}")
+    if (bestBlock.id != block.parentId) throw new RecoverableModifierError(s"Incorrect parentId for ${block.encodedId}")
   }
 
   override def modifierById(id: ModifierId): Option[BDBlock] = reverseMap.get(id).flatMap(h => blocks.get(h))
