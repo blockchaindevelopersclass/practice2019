@@ -47,6 +47,7 @@ class BDMiner(viewHolderRef: ActorRef, timeProvider: NetworkTimeProvider) extend
 
   private def constructNewBlock(parent: BDBlock): BDBlock = {
     val transactions = currentMempool.take(1)
+    transactions.foreach(tx => currentMempool.remove(tx))
     val target = parent.currentTarget
     BDBlock(transactions,
       parent.id,
